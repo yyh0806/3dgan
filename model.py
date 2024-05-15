@@ -88,8 +88,11 @@ class OptimizedInfoGANDiscriminator(nn.Module):
         self.fc_cont = nn.Linear(512 * num_samples, cont_dim)
     
     def forward(self, x):
+        print("输入向量的形状:", x.shape)
         x = x.view(-1, 3, self.num_samples)  # 确保输入维度正确
+        print("经过View操作后的形状:", x.shape)
         x = self.conv_layers(x)
+        print("经过卷积以后的形状:",x.shape)
         real_fake = self.sigmoid(self.fc_real_fake(x))
         category = self.softmax(self.fc_category(x))
         cont_vars = self.fc_cont(x)
@@ -121,8 +124,6 @@ if __name__ == '__main__':
  ######################################################################################################
 
     discriminator = OptimizedInfoGANDiscriminator(num_categories, cont_dim)
-    # 定义输入
-    point_cloud = torch.randn(num_samples, point_cloud_dim)
     # 打印形状
     print(f"point_cloud shape: {point_cloud.shape}")
     # 前向传播
