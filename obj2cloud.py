@@ -3,10 +3,12 @@ import open3d as o3d
 import numpy as np
 
 # 读取 .obj 文件
-mesh = trimesh.load('./dataset/objs/101/4_anger.obj')
+mesh = trimesh.load('./dataset/objs/101/1_neutral.obj')
 
 # 获取顶点数据
 vertices = np.array(mesh.vertices)
+
+print(vertices.shape)
 
 # 创建 open3d 点云对象
 point_cloud = o3d.geometry.PointCloud()
