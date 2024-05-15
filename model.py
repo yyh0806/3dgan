@@ -54,6 +54,48 @@ class InfoGANGeneratorWithMixedCodes(nn.Module):
         return point_cloud.view(-1, 26404, 3)  # 重整输出为所需的点云形状
    
 
+class OptimizedInfoGANDiscriminator(nn.Module):
+    def __init__(self, num_categories, cont_dim, num_samples=32):
+        super(OptimizedInfoGANDiscriminator, self).__init__()
+        self.num_samples = num_samples  # 下采样后的点数
+        self.num_categories = num_categories
+        self.cont_dim = cont_dim
+        
+        # 卷积层用于处理下采样的点云数据
+        self.conv_layers = nn.Sequential(
+            nn.Conv1d(3, 64, kernel_size=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv1d(64, 128, kernel_size=1),
+            nn.BatchNorm1d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv1d(128, 256, kernel_size=1),
+            nn.BatchNorm1d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv1d(256, 512, kernel_size=1),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(0.2),
+            nn.Flatten()
+        )
+
+        # 判别器的最终判断层,输出真假评分
+        self.fc_real_fake = nn.Linear(512 * num_samples, 1)
+        self.sigmoid = nn.Sigmoid()
+
+        # 类别预测
+        self.fc_category = nn.Linear(512 * num_samples, num_categories)
+        self.softmax = nn.Softmax(dim=1)
+        # 连续变量预测
+        self.fc_cont = nn.Linear(512 * num_samples, cont_dim)
+    
+    def forward(self, x):
+        x = x.view(-1, 3, self.num_samples)  # 确保输入维度正确
+        x = self.conv_layers(x)
+        real_fake = self.sigmoid(self.fc_real_fake(x))
+        category = self.softmax(self.fc_category(x))
+        cont_vars = self.fc_cont(x)
+        return real_fake, category, cont_vars
+    
+
 #写一个例子测试上面的模型是否正常运行
 if __name__ == '__main__':
     # 定义模型
@@ -75,3 +117,16 @@ if __name__ == '__main__':
     # 前向传播
     point_cloud = model(img, noise, c_cat, c_cont)
     print(point_cloud.shape)  # 输出点云的形状
+
+ ######################################################################################################
+
+    discriminator = OptimizedInfoGANDiscriminator(num_categories, cont_dim)
+    # 定义输入
+    point_cloud = torch.randn(num_samples, point_cloud_dim)
+    # 打印形状
+    print(f"point_cloud shape: {point_cloud.shape}")
+    # 前向传播
+    real_fake, category, cont_vars = discriminator(point_cloud)
+    print(f"real_fake shape: {real_fake.shape}")
+    print(f"category shape: {category.shape}")
+    print(f"cont_vars shape: {cont_vars.shape}")

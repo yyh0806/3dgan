@@ -10,7 +10,7 @@ transform = transforms.Compose([
 ])
 
 # 读取并转换图像
-image_path = './dataset/objs/101/4_anger.jpg'
+image_path = './dataset/images/101/4_anger.jpg'
 image = Image.open(image_path)
 img_tensor = transform(image)
 
