@@ -10,7 +10,7 @@ cont_dim = 5        # 连续编码的维度
 img_channels = 3     # 图像通道数
 img_size = 256       # 图像尺寸
 point_cloud_dim = 26404*3  # 点云的输出维度
-num_samples = 1024
+num_samples = 32    # 样本数量
 
 class InfoGANGeneratorWithMixedCodes(nn.Module):
    def __init__(self, noise_dim, num_categories, cont_dim, img_channels,img_size, point_cloud_dim):
@@ -19,23 +19,23 @@ class InfoGANGeneratorWithMixedCodes(nn.Module):
         self.img_feature_dim = 512  # 设定图像特征维度
         self.num_categories = num_categories
         self.cont_dim = cont_dim
-         # 首先，将输入的噪声、类别标签和连续变量联合起来
+        # 首先，将输入的噪声、类别标签和连续变量联合起来
         self.fc_noise_cat_cont = nn.Linear(noise_dim + num_categories + cont_dim, self.img_feature_dim)
         # 编码器部分
         self.conv_layers = nn.Sequential(
-            nn.Conv2d(img_channels, 64, kernel_size=4, stride=2, padding=1),  # 输出尺寸: (128, 128, 64)
+            nn.Conv2d(img_channels, 64, kernel_size=4, stride=2, padding=1),  
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  # 输出尺寸: (64, 64, 128)
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),  
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  # 输出尺寸: (32, 32, 256)
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),  
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),  # 输出尺寸: (16, 16, 512)
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1), 
             nn.BatchNorm2d(512),
             nn.ReLU(),
-            nn.Flatten(),  # 扁平化
-            nn.Linear(512 * (img_size // 16) * (img_size // 16), self.img_feature_dim),  # 转为特征向量
+            nn.Flatten(),  
+            nn.Linear(512 * (img_size // 16) * (img_size // 16), self.img_feature_dim), 
             nn.ReLU()
         )
         
@@ -60,9 +60,18 @@ if __name__ == '__main__':
     model = InfoGANGeneratorWithMixedCodes(noise_dim, num_categories, cont_dim, img_channels, img_size, point_cloud_dim)
     # 定义输入    
     noise = torch.randn(num_samples, noise_dim)
-    c_cat = torch.randint(0, num_categories, (num_samples, 1))
+    c_cat_indices = torch.randint(0, num_categories, (num_samples,))
+    c_cat = torch.nn.functional.one_hot(c_cat_indices, num_classes=num_categories).float()
     c_cont = torch.randn(num_samples, cont_dim)
-    img = torch.randn(num_samples, img_channels, img_size)
+    img = torch.randn(num_samples, img_channels, img_size,img_size)
+    # 打印形状
+    print(f"noise shape: {noise.shape}")
+    print(f"c_cat shape: {c_cat.shape}")
+    print(f"c_cont shape: {c_cont.shape}")
+    print(f"img shape: {img.shape}")
+    # 连接后的输出形状
+    output = torch.cat([noise, c_cat, c_cont], dim=1)
+    print(f"output shape: {output.shape}")
     # 前向传播
     point_cloud = model(img, noise, c_cat, c_cont)
     print(point_cloud.shape)  # 输出点云的形状
