@@ -55,44 +55,39 @@ class InfoGANGeneratorWithMixedCodes(nn.Module):
    
 
 class OptimizedInfoGANDiscriminator(nn.Module):
-    def __init__(self, num_categories, cont_dim, num_samples=32):
+    def __init__(self, num_categories, cont_dim, num_features=26404):
         super(OptimizedInfoGANDiscriminator, self).__init__()
-        self.num_samples = num_samples  # 下采样后的点数
+        self.num_features = num_features 
         self.num_categories = num_categories
         self.cont_dim = cont_dim
         
-        # 卷积层用于处理下采样的点云数据
         self.conv_layers = nn.Sequential(
-            nn.Conv1d(3, 64, kernel_size=1),
+            nn.Conv1d(3, 64, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(0.2),
-            nn.Conv1d(64, 128, kernel_size=1),
+            nn.Conv1d(64, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm1d(128),
-            nn.LeakyReLU(0.2),
-            nn.Conv1d(128, 256, kernel_size=1),
-            nn.BatchNorm1d(256),
-            nn.LeakyReLU(0.2),
-            nn.Conv1d(256, 512, kernel_size=1),
-            nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2),
             nn.Flatten()
         )
 
         # 判别器的最终判断层,输出真假评分
-        self.fc_real_fake = nn.Linear(512 * num_samples, 1)
+        self.fc_real_fake = nn.Linear(32 * num_features, 1)
         self.sigmoid = nn.Sigmoid()
 
         # 类别预测
-        self.fc_category = nn.Linear(512 * num_samples, num_categories)
+        self.fc_category = nn.Linear(32 * num_features, num_categories)
         self.softmax = nn.Softmax(dim=1)
         # 连续变量预测
-        self.fc_cont = nn.Linear(512 * num_samples, cont_dim)
+        self.fc_cont = nn.Linear(32 * num_features, cont_dim)
     
     def forward(self, x):
         print("输入向量的形状:", x.shape)
-        x = x.view(-1, 3, self.num_samples)  # 确保输入维度正确
-        print("经过View操作后的形状:", x.shape)
+        batch_size = x.size(0)
+        x = x.permute(0, 2, 1)  # 调整输入维度为 [batch_size, 3, 26404]
+        print("经过permute操作后的形状:", x.shape)
         x = self.conv_layers(x)
-        print("经过卷积以后的形状:",x.shape)
+        print("经过卷积以后的形状:", x.shape)
+        x = x.view(batch_size, -1)
         real_fake = self.sigmoid(self.fc_real_fake(x))
         category = self.softmax(self.fc_category(x))
         cont_vars = self.fc_cont(x)
